@@ -717,6 +717,7 @@ public class PushAlert : NSObject {
     }
     
     public static func addAttributes(attributes: [String: String]){
+        
         if Helper.isSubscribed(), let subs_id:String = getSubscriberID() {
             
             do {
@@ -729,7 +730,7 @@ public class PushAlert : NSObject {
                     URLQueryItem(name: "attributes", value: jsonString)
                 ]
                
-                Helper.postRequest(url: "https://androidapi.pushalert.co/app/v1/attribute/put", queryParams: queryItems, authorization: true){ (jsonOutput) in
+                Helper.postRequest(url: Helper.PUSHALERT_API_DOMAIN + "app/v1/attribute/put", queryParams: queryItems, authorization: true){ (jsonOutput, success) in
                     
                     if (jsonOutput.index(forKey: "success") != nil && jsonOutput["success"] as? Bool == true) {
                         LogM.info(message: "Added attributes successfully")
@@ -754,7 +755,7 @@ public class PushAlert : NSObject {
                 URLQueryItem(name: "subscribers", value: "[\"" + subs_id + "\"]")
             ]
             
-            Helper.postRequest(url: "https://androidapi.pushalert.co/app/v1/segment/" + String(seg_id) + "/add", queryParams: queryItems, authorization: true){ (jsonOutput) in
+            Helper.postRequest(url: Helper.PUSHALERT_API_DOMAIN + "app/v1/segment/" + String(seg_id) + "/add", queryParams: queryItems, authorization: true){ (jsonOutput, success) in
                 
                 if (jsonOutput.index(forKey: "success") != nil && jsonOutput["success"] as? Bool == true) {
                     LogM.info(message: "User added to segment successfully")
@@ -771,7 +772,7 @@ public class PushAlert : NSObject {
                 URLQueryItem(name: "subscribers", value: "[\"" + subs_id + "\"]")
             ]
             
-            Helper.postRequest(url: "https://androidapi.pushalert.co/app/v1/segment/" + String(seg_id) + "/remove", queryParams: queryItems, authorization: true){ (jsonOutput) in
+            Helper.postRequest(url: Helper.PUSHALERT_API_DOMAIN + "app/v1/segment/" + String(seg_id) + "/remove", queryParams: queryItems, authorization: true){ (jsonOutput, success) in
                 
                 if (jsonOutput.index(forKey: "success") != nil && jsonOutput["success"] as? Bool == true) {
                     LogM.info(message: "Subscriber removed from the segment.")
@@ -792,7 +793,7 @@ public class PushAlert : NSObject {
                 URLQueryItem(name: "eventValue", value: String(eventValue))
             ]
             
-            Helper.postRequest(url: "https://androidapi.pushalert.co/app/v1/track/event", queryParams: queryItems, authorization: true){ (jsonOutput) in
+            Helper.postRequest(url: Helper.PUSHALERT_API_DOMAIN + "app/v1/track/event", queryParams: queryItems, authorization: true){ (jsonOutput, success) in
                 
                 if (jsonOutput.index(forKey: "success") != nil && jsonOutput["success"] as? Bool == true) {
                     LogM.info(message: "Event registered successfully")
@@ -875,12 +876,12 @@ public class PushAlert : NSObject {
                 catch {}
             }
             
-            var uri = "https://androidapi.pushalert.co/app/v1/abandonedCart";
+            var uri = Helper.PUSHALERT_API_DOMAIN + "app/v1/abandonedCart";
             if(action==AbandonedCartAction.DELETE){
-                uri = "https://androidapi.pushalert.co/app/v1/abandonedCart/delete";
+                uri = Helper.PUSHALERT_API_DOMAIN + "app/v1/abandonedCart/delete";
             }
             
-            Helper.postRequest(url: uri, queryParams: queryItems, authorization: true){ (jsonOutput) in
+            Helper.postRequest(url: uri, queryParams: queryItems, authorization: true){ (jsonOutput, success) in
                 
                 if (jsonOutput.index(forKey: "success") != nil && jsonOutput["success"] as? Bool == true) {
                     LogM.info(message: "AbandonedCart action performed successfully: " + "\(action)")
@@ -915,9 +916,9 @@ public class PushAlert : NSObject {
                 catch {}
             }
             
-            let url = "https://androidapi.pushalert.co/app/v1/productAlert";
+            let url = Helper.PUSHALERT_API_DOMAIN + "app/v1/productAlert";
             
-            Helper.postRequest(url: url, queryParams: queryItems, authorization: true){ (jsonOutput) in
+            Helper.postRequest(url: url, queryParams: queryItems, authorization: true){ (jsonOutput, success) in
                 
                 if (jsonOutput.index(forKey: "success") != nil && jsonOutput["success"] as? Bool == true) {
                     if(type == "oos"){

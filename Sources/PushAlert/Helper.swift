@@ -14,7 +14,7 @@ class Helper {
     static let PA_SETTINGS_PROVISIONAL_AUTHORIZATION = "provisional_auth"
     static let PA_SETTINGS_IN_APP_BEHAVIOUR = "in_app_behaviour"
     
-    static let sendingSubsID = false;
+    static var sendingSubsID = false;
     static let APP_ID_PREF = "PA_APP_ID";
     static let SUBSCRIBER_ID_PREF = "PA_SUBSCRIBER_ID";
     static let CURRENT_TOKEN_PREF = "PA_CURRENT_TOKEN";
@@ -42,7 +42,8 @@ class Helper {
     static let APP_NOTIFICATION_PERMISSION_STATE = "PA_APP_NOTIFICATION_PERMISSION_STATE";
     static let ENABLE_FIREBASE_ANALYTICS = "PA_ENABLE_FIREBASE_ANALYTICS";
     
-    private static let PUSHALERT_DOMAIN = "https://androidapi.pushalert.co/";
+    static let PUSHALERT_API_DOMAIN = "https://iosapi.pushalert.co/";
+    static let PUSHALERT_APPS_DOMAIN = "https://iosapps.pushalert.co/";
     
     static let PA_SUBS_STATUS_SUBSCRIBED = 1;
     static let PA_SUBS_STATUS_UNSUBSCRIBED = -1;
@@ -53,7 +54,7 @@ class Helper {
     static var pa_subs_id = ""
     
     
-    public static func postRequest(url:String, queryParams:[URLQueryItem], authorization: Bool, completionBlock: @escaping ([String: Any]) -> Void){
+    public static func postRequest(url:String, queryParams:[URLQueryItem], authorization: Bool, completionBlock: @escaping ([String: Any], Bool) -> Void){
         
         let url = URL(string: url)!
         
@@ -101,7 +102,7 @@ class Helper {
             do {
                 // create json object from data or use JSONDecoder to convert to Model stuct
                 if let jsonResponse = try JSONSerialization.jsonObject(with: data, options: .mutableContainers) as? [String: Any] {
-                    completionBlock(jsonResponse)
+                    completionBlock(jsonResponse, true)
                 } else {
                     LogM.error(message: "data maybe corrupted or in wrong format")
                     throw URLError(.badServerResponse)
@@ -233,6 +234,11 @@ class Helper {
     }
     
     public static func registerToken(token:String){
+        while (sendingSubsID) {
+            usleep(500)
+        }
+        sendingSubsID = true;
+        
         var queryItems:[URLQueryItem] = []
         
         let sharedPreference = getSharedPreferences();
@@ -281,8 +287,12 @@ class Helper {
         queryItems.append(URLQueryItem(name: "app_type", value: "ios"))
         queryItems.append(URLQueryItem(name: "app_version", value: String(getAppVersionInt())))
         
-        postRequest(url: "https://androidapps.pushalert.co/" + "subscribe/" + token, queryParams: queryItems, authorization: false){ (jsonOutput) in
+        postRequest(url: Helper.PUSHALERT_APPS_DOMAIN + "subscribe/" + token, queryParams: queryItems, authorization: false){ (jsonOutput, success) in
             
+            guard success else {
+                sendingSubsID = false
+                return
+            }
             sharedPreference.set(jsonOutput["subs_id"] as! String, forKey: SUBSCRIBER_ID_PREF);
             sharedPreference.set(PA_SUBS_STATUS_SUBSCRIBED, forKey: SUBSCRIPTION_STATUS_PREF);
             sharedPreference.set(jsonOutput["attribution_time"] as! Int, forKey: PREFERENCE_ATTRIBUTION_TIME);
@@ -308,6 +318,7 @@ class Helper {
                     Helper.setAttributionTime(attribution_time: data)
                 }
             }
+            sendingSubsID = false
             
         }
     }
@@ -483,7 +494,7 @@ class Helper {
         
         //Helper.saveLastReceivedNotificationInfo(map.get("id"), map.containsKey("template_id") ? (map.get("template") + " (" + map.get("template_id") + ")") : "None");
         
-        getRequest(url: PUSHALERT_DOMAIN + "deliveredApp.php", queryParams: queryItems);
+        getRequest(url: PUSHALERT_API_DOMAIN + "deliveredApp.php", queryParams: queryItems);
         
         var campaign = "";
         if let tempCampaign = notification_info["campaign"] as? String {
@@ -520,7 +531,7 @@ class Helper {
         queryItems.append(URLQueryItem(name: "osVer", value: getOSInfo()))
         
         
-        getRequest(url: PUSHALERT_DOMAIN + "trackClickedApp.php", queryParams: queryItems);
+        getRequest(url: PUSHALERT_API_DOMAIN + "trackClickedApp.php", queryParams: queryItems);
     }
     
     public static func saveNotificationCategories(notificationCategory:PANotificationCategory) -> [PANotificationCategory] {
@@ -714,7 +725,7 @@ class Helper {
                 URLQueryItem(name: "is_active", value: subscriptionState ? "1" : "0")
             ]
             
-            Helper.postRequest(url: "https://androidapi.pushalert.co/app/v1/subscriptionState", queryParams: queryItems, authorization: true){ (jsonOutput) in
+            Helper.postRequest(url: PUSHALERT_API_DOMAIN + "app/v1/subscriptionState", queryParams: queryItems, authorization: true){ (jsonOutput, success) in
                 
                 if (jsonOutput.index(forKey: "success") != nil && jsonOutput["success"] as? Bool == true) {
                     getSharedPreferences().set(subscriptionState, forKey: APP_NOTIFICATION_PERMISSION_STATE)
@@ -738,7 +749,7 @@ class Helper {
                 URLQueryItem(name: "conversion_direct", value: String(direct)),
             ]
             
-            Helper.postRequest(url: "https://androidapi.pushalert.co/app/v1/conversion", queryParams: queryItems, authorization: true){ (jsonOutput) in
+            Helper.postRequest(url: PUSHALERT_API_DOMAIN + "app/v1/conversion", queryParams: queryItems, authorization: true){ (jsonOutput, success) in
                 
                 if (jsonOutput.index(forKey: "success") != nil && jsonOutput["success"] as? Bool == true) {
                     LogM.info(message: "Conversion reported successfully")
@@ -889,7 +900,7 @@ class Helper {
                 URLQueryItem(name: "conversion_direct", value: String(finalDirect)),
             ]
             
-            Helper.postRequest(url: "https://androidapi.pushalert.co/analyticsApp", queryParams: queryItems, authorization: true){ (jsonOutput) in
+            Helper.postRequest(url: PUSHALERT_API_DOMAIN + "analyticsApp", queryParams: queryItems, authorization: true){ (jsonOutput, success) in
                 
                 if (jsonOutput.index(forKey: "success") != nil && jsonOutput["success"] as? Bool == true) {
                     LogM.info(message: "App analytics updated successfully");
