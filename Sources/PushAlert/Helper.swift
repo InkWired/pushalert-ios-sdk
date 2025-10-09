@@ -245,6 +245,7 @@ class Helper {
         if let prevToken = sharedPreference.string(forKey: CURRENT_TOKEN_PREF) {
             if(prevToken == token){
                 sharedPreference.set(PA_SUBS_STATUS_SUBSCRIBED, forKey: SUBSCRIPTION_STATUS_PREF);
+                sendingSubsID = false
                 return
             }
             else{
@@ -261,7 +262,6 @@ class Helper {
         let screenWidth = screenSize.width
         let screenHeight = screenSize.height
         let userAgent = WKWebView().value(forKey: "userAgent");
-        
         queryItems.append(URLQueryItem(name: "action", value: "subscribe"))
         queryItems.append(URLQueryItem(name: "pa_id", value: String(pushalert_info[1])))
         queryItems.append(URLQueryItem(name: "domain_id", value: String(pushalert_info[2])))
@@ -279,6 +279,13 @@ class Helper {
         queryItems.append(URLQueryItem(name: "color_depth", value: "-1"))
         queryItems.append(URLQueryItem(name: "language", value: Locale.current.languageCode))
         queryItems.append(URLQueryItem(name: "engine", value: "na"))
+        
+        #if DEBUG
+        queryItems.append(URLQueryItem(name: "amp", value: "1"))
+        #else
+        queryItems.append(URLQueryItem(name: "amp", value: "0"))
+        #endif
+        
         queryItems.append(URLQueryItem(name: "userAgent", value: userAgent as? String))
         queryItems.append(URLQueryItem(name: "endpoint_url", value: "safari"))
         queryItems.append(URLQueryItem(name: "subs_info", value: "{}"))
@@ -606,7 +613,10 @@ class Helper {
         
         let major:Int = Int(versions_int[0]) ?? 0
         let minor:Int = Int(versions_int[1]) ?? 0
-        let patch:Int = Int(versions_int[2]) ?? 0
+        var patch:Int = 0
+        if versions_int.indices.contains(2) {
+            patch = Int(versions_int[2]) ?? 0
+        }
         
         return major * 1000000 + minor * 1000 + patch
     }

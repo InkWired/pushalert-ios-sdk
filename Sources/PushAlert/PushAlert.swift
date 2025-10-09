@@ -26,6 +26,8 @@ public class PushAlert : NSObject {
     }
     
     @objc public static func initialize(app_id:String, application:UIApplication, settings:Dictionary<String, Any>){
+        PushAlertProxyDelegate.shared.start()
+        
         self.app_id = app_id
         self.settings = settings
         
@@ -209,7 +211,7 @@ public class PushAlert : NSObject {
         return Helper.getAppId()
     }
     
-    public static func handleNotificationClick(response:UNNotificationResponse) -> Void{
+    public static func handleNotificationClick(response:UNNotificationResponse, completionHandler: @escaping () -> Void) -> Void{
         
         let notification_info = response.notification.request.content.userInfo
         var clicked_on = 0
@@ -352,6 +354,8 @@ public class PushAlert : NSObject {
                 }
             }
         }
+    
+        completionHandler()
     }
     
     public static func handleForegroundNotification(notification:UNNotification, completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) -> Void{
