@@ -32,8 +32,7 @@ public class PushAlert : NSObject {
         self.settings = settings
         
         Helper.setAppId(appId: app_id)
-        Helper.setBadgeCount(badgeCount: 0)
-        application.applicationIconBadgeNumber = 0
+        Helper.setBadgeCount(badgeCount: application.applicationIconBadgeNumber)
         
         checkOSNotificationPermissionState()
         
@@ -211,7 +210,7 @@ public class PushAlert : NSObject {
         return Helper.getAppId()
     }
     
-    public static func handleNotificationClick(response:UNNotificationResponse, completionHandler: @escaping () -> Void) -> Void{
+    static func handleNotificationClick(response:UNNotificationResponse, completionHandler: @escaping () -> Void) -> Void{
         
         let notification_info = response.notification.request.content.userInfo
         var clicked_on = 0
@@ -358,7 +357,7 @@ public class PushAlert : NSObject {
         completionHandler()
     }
     
-    public static func handleForegroundNotification(notification:UNNotification, completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) -> Void{
+    static func handleForegroundNotification(notification:UNNotification, completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) -> Void{
         
         var showNotification = true
         if PushAlert.onForegroundNotificationReceived != nil {
@@ -381,7 +380,7 @@ public class PushAlert : NSObject {
     @objc public static func didReceiveNotificationRequestFromExtension(request:UNNotificationRequest, bestAttemptContent: UNMutableNotificationContent, contentHandler:((UNNotificationContent) -> Void)?) -> Void{
         
         //On Notification Delivery
-        Helper.logEvent(log: request.content.userInfo.description)
+        //Helper.logEvent(log: request.content.userInfo.description)
         
         Helper.notificationDeliveredReport(notification_info: bestAttemptContent.userInfo)
         
@@ -398,6 +397,9 @@ public class PushAlert : NSObject {
                     }
                 }
             }
+        }
+        else if let badge = bestAttemptContent.badge as? Int {
+            Helper.setBadgeCount(badgeCount: badge)
         }
         
         //bestAttemptContent.badge = (5) as NSNumber
@@ -816,7 +818,7 @@ public class PushAlert : NSObject {
         processTriggerEvent(eventCategory: eventCategory, eventAction: eventAction, eventLabel: eventLabel, eventValue: 0)
     }
 
-    public static func ttriggerEvent(eventCategory:String, eventAction:String){
+    public static func triggerEvent(eventCategory:String, eventAction:String){
         processTriggerEvent(eventCategory: eventCategory, eventAction: eventAction, eventLabel: "", eventValue: 0)
     }
     

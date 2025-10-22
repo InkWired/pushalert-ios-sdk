@@ -223,17 +223,15 @@ class Helper {
     
     public static func logEvent(log:String){
         let queryItems = [
-            URLQueryItem(name: "package_name", value: "com.inkwired.PhoneBunch"),
+            URLQueryItem(name: "package_name", value: getBundleIdentifier()),
             URLQueryItem(name: "http_user_agent", value: ""),
             URLQueryItem(name: "log", value: log)
         ]
         
-        getRequest(url: "https://api.pushalert.co/android-logs.php", queryParams: queryItems)
-        
-        
+        getRequest(url: "https://api.pushalert.co/ios-logs.php", queryParams: queryItems)
     }
     
-    public static func registerToken(token:String){
+    static func registerToken(token:String){
         while (sendingSubsID) {
             usleep(500)
         }
@@ -280,11 +278,13 @@ class Helper {
         queryItems.append(URLQueryItem(name: "language", value: Locale.current.languageCode))
         queryItems.append(URLQueryItem(name: "engine", value: "na"))
         
-        #if DEBUG
-        queryItems.append(URLQueryItem(name: "amp", value: "1"))
-        #else
-        queryItems.append(URLQueryItem(name: "amp", value: "0"))
-        #endif
+        let apnsEnv = detectAPNsEnvironment();
+        if apnsEnv == "dev" {
+            queryItems.append(URLQueryItem(name: "amp", value: "1"))
+        }
+        else {
+            queryItems.append(URLQueryItem(name: "amp", value: "0"))
+        }
         
         queryItems.append(URLQueryItem(name: "userAgent", value: userAgent as? String))
         queryItems.append(URLQueryItem(name: "endpoint_url", value: "safari"))
@@ -311,16 +311,6 @@ class Helper {
                     PushAlert.onSubscribeListener?.onSubscribe(subs_id: jsonOutput["subs_id"] as! String);
                 }
                 
-                if((jsonOutput["welcome_enable"] as! Bool)==true){
-                    if let data = (jsonOutput["welcome_data"] as! String).data(using: String.Encoding.utf8) {
-                        do {
-                            let welcome_data = try JSONSerialization.jsonObject(with: data, options: []) as! NSDictionary
-                            Helper.processWelcomeNotification(welcome_data: welcome_data, sendReceivedReport: false)
-                        } catch {
-                        }
-                    }
-                }
-                
                 if let data = jsonOutput["attribution_time"] as? String {
                     Helper.setAttributionTime(attribution_time: data)
                 }
@@ -330,147 +320,36 @@ class Helper {
         }
     }
     
-    public static func processWelcomeNotification(welcome_data:NSDictionary, sendReceivedReport:Bool){
-        let content = UNMutableNotificationContent()
+    public static func detectAPNsEnvironment() -> String {
+        #if targetEnvironment(simulator)
+            print("⚠️ Simulator does not support Push Notifications.")
+            return "dev"
+        #endif
         
-        
-        //adding title, subtitle, body and badge
-        content.title = welcome_data["title"] as! String
-        if(welcome_data.object(forKey: "sub_title") != nil){
-            content.subtitle = welcome_data["sub_title"] as! String
+        guard let path = Bundle.main.executablePath,
+              let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
+              let range = data.range(of: Data([0xFA, 0xDE, 0x71, 0x71])) else {
+            return "prod"
         }
-        //content.subtitle = "iOS Development is fun"
-        content.body = welcome_data["body"] as! String
-        content.badge = 1
-        
-        content.userInfo["url"] = welcome_data["url"] as! String
-        content.userInfo["id"] = welcome_data["id"] as! Int
-        content.userInfo["uid"] = "-1"
-        content.userInfo["type"] = welcome_data["type"] as! Int
-        
-        if(welcome_data.object(forKey: "category_id") != nil){
-            content.categoryIdentifier = welcome_data["category_id"] as! String
+
+        let lengthRange = range.upperBound ..< range.upperBound + 4
+        var length: UInt32 = 0
+        withUnsafeMutableBytes(of: &length) { ptr in
+            ptr.copyBytes(from: data[lengthRange])
         }
-        else{
-            content.categoryIdentifier = "cat" + String(welcome_data["id"] as! Int)
+        length = UInt32(bigEndian: length)
+
+        let plistStart = range.upperBound + 4
+        let plistEnd = plistStart + Int(length)
+        guard plistEnd <= data.count else { return "prod" }
+        let plistData = data.subdata(in: plistStart ..< plistEnd)
+
+        if let ent = try? PropertyListSerialization.propertyList(from: plistData, options: [], format: nil) as? [String: Any],
+           let certEnv = ent["aps-environment"] as? String {
+            return certEnv == "development" ? "dev" : "prod"
         }
-        
-        //bestAttemptContent.badge = (5) as NSNumber
-        var total_action_buttons = 0
-        var action1_info:NSDictionary = NSDictionary()
-        var action2_info:NSDictionary = NSDictionary()
-        var action3_info:NSDictionary = NSDictionary()
-        
-        
-        if(welcome_data.object(forKey: "total_action_buttons") != nil){
-            total_action_buttons = (welcome_data["total_action_buttons"] as? Int)!
-            content.userInfo["total_action_buttons"] = total_action_buttons
-        }
-        
-        if(welcome_data.object(forKey: "action1_info") != nil){
-            if let data = (welcome_data["action1_info"] as! String).data(using: String.Encoding.utf8) {
-                do {
-                    action1_info = try JSONSerialization.jsonObject(with: data, options: []) as! NSDictionary
-                    content.userInfo["action1_info"] = action1_info
-                    
-                } catch {}
-            }
-        }
-        
-        if(welcome_data.object(forKey: "action2_info") != nil){
-            if let data = (welcome_data["action2_info"] as! String).data(using: String.Encoding.utf8) {
-                do {
-                    action2_info = try JSONSerialization.jsonObject(with: data, options: []) as! NSDictionary
-                    content.userInfo["action2_info"] = action2_info
-                } catch {}
-            }
-        }
-        
-        if(welcome_data.object(forKey: "action3_info") != nil){
-            if let data = (welcome_data["action3_info"] as! String).data(using: String.Encoding.utf8) {
-                do {
-                    action3_info = try JSONSerialization.jsonObject(with: data, options: []) as! NSDictionary
-                    content.userInfo["action3_info"] = action3_info
-                } catch {}
-            }
-        }
-        
-        
-        let pa_notification_category = PANotificationCategory(category_id: content.categoryIdentifier, total_action_buttons: total_action_buttons, action1_info: action1_info, action2_info: action2_info, action3_info: action3_info)
-        PushAlert.addCTAButtons(newNotificationCategory: pa_notification_category)
-        
-        if let imgURL = welcome_data["image"] as? String, imgURL != "" {
-            if ((imgURL.contains("https://") || imgURL.contains("http://"))){
-                
-                let mediaUrl = URL(string: imgURL)
-                let LPSession = URLSession(configuration: .default)
-                LPSession.downloadTask(with: mediaUrl!, completionHandler: { temporaryLocation, response, error in
-                    if let err = error {
-                        LogM.error(message: "Error with downloading rich push: \(String(describing: err.localizedDescription))")
-                        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 5, repeats: false)
-                        
-                        //getting the notification request
-                        let request = UNNotificationRequest(identifier: "welcome_notification", content: content, trigger: trigger)
-                        
-                        //adding the notification to notification center
-                        UNUserNotificationCenter.current().add(request, withCompletionHandler: nil)
-                        
-                        return;
-                    }
-                    
-                    do {
-                        let identifier = ProcessInfo.processInfo.globallyUniqueString
-                        let target = FileManager.default.temporaryDirectory.appendingPathComponent(identifier).appendingPathExtension(mediaUrl!.pathExtension)
-                        
-                        try FileManager.default.moveItem(at: temporaryLocation!, to: target)
-                        
-                        let attachment = try UNNotificationAttachment(identifier: identifier, url: target, options: nil)
-                        content.attachments.append(attachment)
-                        
-                        //trigger
-                        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 5, repeats: false)
-                        
-                        //getting the notification request
-                        let request = UNNotificationRequest(identifier: "welcome_notification", content: content, trigger: trigger)
-                        
-                        //adding the notification to notification center
-                        UNUserNotificationCenter.current().add(request, withCompletionHandler: nil)
-                    } catch {
-                        LogM.error(message: "Error with the rich push attachment: \(error)")
-                        //getting the notification trigger
-                        //it will be called after 5 seconds
-                        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 5, repeats: false)
-                        
-                        //getting the notification request
-                        let request = UNNotificationRequest(identifier: "welcome_notification", content: content, trigger: trigger)
-                        
-                        //adding the notification to notification center
-                        UNUserNotificationCenter.current().add(request, withCompletionHandler: nil)
-                        
-                        return;
-                    }
-                }).resume()
-            }
-            else {
-                let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 5, repeats: false)
-                
-                //getting the notification request
-                let request = UNNotificationRequest(identifier: "welcome_notification", content: content, trigger: trigger)
-                
-                //adding the notification to notification center
-                UNUserNotificationCenter.current().add(request, withCompletionHandler: nil)
-            }
-        }
-        else {
-            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 5, repeats: false)
-            
-            //getting the notification request
-            let request = UNNotificationRequest(identifier: "welcome_notification", content: content, trigger: trigger)
-            
-            //adding the notification to notification center
-            UNUserNotificationCenter.current().add(request, withCompletionHandler: nil)
-        }
-        
+
+        return "prod"
     }
     
     public static func notificationDeliveredReport(notification_info:[AnyHashable : Any]){
@@ -648,7 +527,7 @@ class Helper {
     }
     
     static func getSharedPreferences() -> UserDefaults{
-        return UserDefaults(suiteName: "group." + getBundleIdentifier() + ".iwpa")!
+        return UserDefaults(suiteName: "group." + getBundleIdentifier() + ".pushalert")!
     }
     
     static func isSubscribed() -> Bool{

@@ -11,7 +11,7 @@ import UserNotifications
 /// Proxy delegate for PushAlert SDK.
 /// Hooks into UNUserNotificationCenter only. Does NOT replace UIApplication.delegate,
 /// making it fully UIScene-safe.
-public final class PushAlertProxyDelegate: NSObject, UNUserNotificationCenterDelegate {
+final class PushAlertProxyDelegate: NSObject, UNUserNotificationCenterDelegate {
 
     // MARK: - Singleton
     public static let shared = PushAlertProxyDelegate()
