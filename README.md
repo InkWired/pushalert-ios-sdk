@@ -24,4 +24,4 @@ For account and other issues, please contact our support team from the [PushAler
 
 #### Supports:
 * Swift
-* Supports iOS 9 to iOS 15
+* Supports iOS 10 and above
